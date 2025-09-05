@@ -1,0 +1,34 @@
+{
+  "name": "deliverycalculation",
+  "version": "1.0.0",
+  "description": "API para calculo de frete a partir de leitura de arquivos para salvar no banco de dados",
+  "homepage": "https://github.com/vinicius2407/deliveryCalculation#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vinicius2407/deliveryCalculation.git"
+  },
+  "license": "MIT",
+  "author": "Vinícius Silva",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon --exec tsx index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@aegisx/fastify-multipart": "^1.0.1",
+    "@fastify/jwt": "^10.0.0",
+    "@fastify/multipart": "^9.2.1",
+    "@fastify/swagger": "^9.5.1",
+    "@fastify/swagger-ui": "^5.2.3",
+    "fast-csv": "^5.0.5",
+    "fastify": "^5.5.0",
+    "lowdb": "^7.0.1",
+    "zod": "^4.1.5"
+  }
+}
