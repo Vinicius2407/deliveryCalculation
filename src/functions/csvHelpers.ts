@@ -1,21 +1,15 @@
-import { CsvParserStream, parse } from 'fast-csv';
+import { parse, CsvParserStream } from 'fast-csv';
 import { Readable } from 'stream';
-
 import { Classificacao } from '../db/db';
 
 export interface DadosPreco {
-    UF: string;
-    classificacao: Classificacao;
-    precos_por_kg: { [key: string]: number };
+  UF: string;
+  classificacao: Classificacao;
+  precos_por_kg: { [key: string]: number };
 }
 
-interface CsvRow extends Array<string> { }
+interface CsvRow extends Array<string> {}
 
-/**
- * Mapeia a string da localidade do CSV para o enum Classificacao.
- * @param localidade A string da segunda coluna do CSV.
- * @returns O valor do enum Classificacao correspondente.
- */
 function getClassificationFromString(localidade: string): Classificacao {
     switch (localidade) {
         case 'Interior 0':
@@ -38,49 +32,49 @@ function getClassificationFromString(localidade: string): Classificacao {
 }
 
 export function parseCsvStream(stream: Readable): Promise<DadosPreco[]> {
-    return new Promise((resolve, reject) => {
-        const results: DadosPreco[] = [];
-        let lastUF = '';
+  return new Promise((resolve, reject) => {
+    const results: DadosPreco[] = [];
+    let lastUF = '';
 
-        const csvStream: CsvParserStream<CsvRow, CsvRow> = parse({ headers: false, skipRows: 2 })
-            .on('error', (error) => reject(error))
-            .on('data', (row: CsvRow) => {
-                if (row.length < 3 || row.every(field => field.trim() === '')) {
-                    return;
-                }
+    const csvStream: CsvParserStream<CsvRow, CsvRow> = parse({ headers: false, skipRows: 2 })
+      .on('error', (error) => reject(error))
+      .on('data', (row: CsvRow) => {
+        if (row.length < 3 || row.every(field => field.trim() === '')) {
+            return;
+        }
 
-                const currentUF = row[0] && row[0].trim() !== '' ? row[0].trim() : lastUF;
-                const localidade = row[1] ? row[1].trim() : '';
+        const currentUF = row[0] && row[0].trim() !== '' ? row[0].trim() : lastUF;
+        const localidade = row[1] ? row[1].trim() : '';
+        
+        if (currentUF && localidade) {
+          lastUF = currentUF;
+          const classificacao = getClassificationFromString(localidade);
+          const precos_por_kg: { [key: string]: number } = {};
+          
+          for (let i = 2; i < row.length - 1; i++) {
+            const key = (i - 1).toString();
+            const value = row[i];
 
-                if (currentUF && localidade) {
-                    lastUF = currentUF;
-                    const classificacao = getClassificationFromString(localidade);
-                    const precos_por_kg: { [key: string]: number } = {};
+            if (value && value.trim() !== '') {
+                const cleanedValue = value.replace(/"/g, '');
+                precos_por_kg[key] = parseFloat(cleanedValue.replace(',', '.'));
+            }
+          }
 
-                    for (let i = 2; i < row.length - 1; i++) {
-                        const key = (i - 1).toString();
-                        const value = row[i];
-
-                        if (value && value.trim() !== '') {
-                            const cleanedValue = value.replace(/"/g, '');
-                            precos_por_kg[key] = parseFloat(cleanedValue.replace(',', '.'));
-                        }
-                    }
-
-                    if (Object.keys(precos_por_kg).length > 0) {
-                        results.push({
-                            UF: currentUF,
-                            classificacao,
-                            precos_por_kg,
-                        });
-                    }
-                }
-            })
-            .on('end', (rowCount: number) => {
-                console.log(`Parsed ${rowCount} data rows from CSV.`);
-                resolve(results);
+          if (Object.keys(precos_por_kg).length > 0) {
+            results.push({
+              UF: currentUF,
+              classificacao,
+              precos_por_kg,
             });
+          }
+        }
+      })
+      .on('end', (rowCount: number) => {
+        console.log(`Parsed ${rowCount} data rows from CSV.`);
+        resolve(results);
+      });
 
-        stream.pipe(csvStream);
-    });
+    stream.pipe(csvStream);
+  });
 }

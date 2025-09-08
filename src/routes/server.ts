@@ -10,7 +10,11 @@ export class FastifyServer {
     private async setup() {
         this.app.register(fastifyMultipart);
 
-        this.app.register(require('@fastify/jwt'), { secret: 'faksldjf;alksjdfl;k3j2l;fj2;lfja;lkfj;saldkf' });
+        if (!process.env.JWT_SECRET) {
+            throw new Error('JWT_SECRET não foi definido no arquivo .env');
+        }
+
+        this.app.register(require('@fastify/jwt'), { secret: process.env.JWT_SECRET });
 
         this.app.decorate("authenticate",
             async function (request: FastifyRequest, reply: FastifyReply) {
@@ -22,8 +26,8 @@ export class FastifyServer {
             });
 
         this.app.register(staticPlugin, {
-            root: path.join(__dirname, '..', 'public'), // Caminho para a pasta 'public'
-            prefix: '/', // Opcional: sirva a partir da raiz do site
+            root: path.join(__dirname, '..', 'public'),
+            prefix: '/',
         });
 
         this.app.register(routes);

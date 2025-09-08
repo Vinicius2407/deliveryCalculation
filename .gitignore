@@ -1,3 +1,5 @@
-src/db/db.json
+
+# Arquivos de ambiente
+.env
 node_modules
-.vscode
+*.csv

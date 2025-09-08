@@ -1,10 +1,9 @@
 // @ts-ignore
 /// <reference path="../../fastify.d.ts" />
 
+import { FastifyInstance } from 'fastify';
 import { randomUUID } from 'crypto';
 import * as csv from 'fast-csv';
-import { FastifyInstance } from 'fastify';
-
 import { Classificacao, getDb, TaxaFrete } from '../db/db';
 import { parseCsvStream } from '../functions/csvHelpers';
 
@@ -15,7 +14,7 @@ export async function routes(fastify: FastifyInstance) {
         const user = db.data.users.find(user => user.email === email && user.password === password);
 
         if (user) {
-            const token = fastify.jwt.sign({ email: user.email });
+            const token = fastify.jwt.sign({ email: user.email }, { expiresIn: '8h' });
             return { token };
         }
 
@@ -71,11 +70,9 @@ export async function routes(fastify: FastifyInstance) {
                 message: `${dadosPrecos.length} registros de preços salvos com sucesso!`,
                 filename: data.filename,
             });
-        } catch (error: any & { message: string }) { // @ts-ignore
-            console.error('Erro no upload de preços:', error.message);
+        } catch (error) {
             return reply.status(500).send({
                 error: 'Ocorreu um erro ao processar o arquivo.',
-                details: error.message,
             });
         }
     });

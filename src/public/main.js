@@ -1,15 +1,75 @@
 const appLogic = () => {
-    // URL base da sua API
     const BASE_API_URL = "http://localhost:3000";
 
-    // --- Estado e alternância de UI ---
-    let token = window.localStorage.getItem("token");
-    let isLoading = false;
-
-    const loginFormContainer = document.getElementById(
-        "login-form-container"
-    );
+    const loginFormContainer = document.getElementById("login-form-container");
     const mainAppContainer = document.getElementById("main-app-container");
+    const toastContainer = document.getElementById("toast-container");
+    const loginForm = document.getElementById("login-form");
+    const emailInput = document.getElementById("email-input");
+    const passwordInput = document.getElementById("password-input");
+    const loginButton = document.getElementById("login-button");
+    const loginText = document.getElementById("login-text");
+    const loginSpinner = document.getElementById("login-spinner");
+    const logoutButton = document.getElementById("logout-button");
+    const userEmailDisplay = document.getElementById("user-email");
+
+    const fileInput = document.getElementById("csv-upload");
+    const chooseFileButton = document.getElementById("choose-file-button");
+    const selectedFileContainer = document.getElementById("selected-file-container");
+    const fileNameDisplay = document.getElementById("file-name");
+    const fileSizeDisplay = document.getElementById("file-size");
+    const uploadButton = document.getElementById("upload-button");
+    const uploadText = document.getElementById("upload-text");
+    const loadingSpinner = document.getElementById("loading-spinner");
+    const successMessage = document.getElementById("success-message");
+
+    const fileInputPrice = document.getElementById("csv-upload-price");
+    const choosePriceFileButton = document.getElementById("choose-file-price-button");
+    const selectedFilePriceContainer = document.getElementById("selected-file-price-container");
+    const fileNamePriceDisplay = document.getElementById("file-price-name");
+    const fileSizePriceDisplay = document.getElementById("file-price-size");
+    const uploadPriceButton = document.getElementById("upload-price-button");
+    const uploadPriceText = document.getElementById("upload-price-text");
+    const loadingPriceSpinner = document.getElementById("loading-price-spinner");
+    const successPriceMessage = document.getElementById("success-price-message");
+
+    let selectedFile = null;
+    let selectedPriceFile = null;
+
+    const toast = ({ title, description, variant }) => {
+        const toastEl = document.createElement("div");
+        const bgColor = variant === "destructive" ? "bg-red-500" : "bg-gray-800";
+        const borderColor = variant === "destructive" ? "border-red-400" : "border-gray-700";
+
+        toastEl.className = `p-4 rounded-md shadow-lg text-white ${bgColor} border ${borderColor} transition-all transform ease-out duration-300`;
+        toastEl.innerHTML = `
+            <div class="flex items-center justify-between">
+                <h4 class="font-semibold">${title}</h4>
+                <button class="ml-4 text-white hover:text-gray-200" onclick="this.parentElement.parentElement.remove()">&times;</button>
+            </div>
+            <p class="text-sm opacity-90 mt-1">${description}</p>
+        `;
+        toastContainer.prepend(toastEl);
+        setTimeout(() => toastEl.remove(), 5000);
+    };
+
+    const apiFetch = async (url, options = {}) => {
+        const token = window.localStorage.getItem("token");
+        const headers = { ...options.headers };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, { ...options, headers });
+
+        if (response.status === 401) {
+            handleLogout(true);
+            return Promise.reject(new Error("Sessão expirada"));
+        }
+
+        return response;
+    };
 
     const showLogin = () => {
         loginFormContainer.classList.remove("hidden");
@@ -17,46 +77,33 @@ const appLogic = () => {
     };
 
     const showApp = () => {
+        const token = window.localStorage.getItem("token");
+        if (!token) return;
+
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            userEmailDisplay.textContent = payload.email;
+        } catch (e) {
+            console.error("Erro ao decodificar o token:", e);
+            handleLogout(true);
+            return;
+        }
+
         loginFormContainer.classList.add("hidden");
         mainAppContainer.classList.remove("hidden");
     };
 
-    token ? showApp() : showLogin();
-
-    // --- Sistema de Notificação Toast ---
-    const toast = ({ title, description, variant }) => {
-        const container = document.getElementById("toast-container");
-        const toastEl = document.createElement("div");
-        let bgColor = "bg-gray-800";
-        let borderColor = "border-gray-700";
-        if (variant === "destructive") {
-            bgColor = "bg-red-500";
-            borderColor = "border-red-400";
+    const handleLogout = (isSessionExpired = false) => {
+        window.localStorage.removeItem("token");
+        emailInput.value = "";
+        passwordInput.value = "";
+        showLogin();
+        if (isSessionExpired) {
+            toast({ title: "Sessão Expirada", description: "Por favor, faça o login novamente.", variant: "destructive" });
+        } else {
+            toast({ title: "Sessão Encerrada", description: "Você saiu do sistema." });
         }
-
-        toastEl.className = `p-4 rounded-md shadow-lg text-white ${bgColor} border ${borderColor} transition-all transform ease-out duration-300`;
-        toastEl.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <h4 class="font-semibold">${title}</h4>
-                        <button class="ml-4 text-white hover:text-gray-200" onclick="this.parentElement.parentElement.remove()">
-                            &times;
-                        </button>
-                    </div>
-                    <p class="text-sm opacity-90 mt-1">${description}</p>
-                `;
-        container.prepend(toastEl);
-        setTimeout(() => {
-            toastEl.remove();
-        }, 5000);
     };
-
-    // --- Lógica do Formulário de Login ---
-    const loginForm = document.getElementById("login-form");
-    const emailInput = document.getElementById("email-input");
-    const passwordInput = document.getElementById("password-input");
-    const loginButton = document.getElementById("login-button");
-    const loginText = document.getElementById("login-text");
-    const loginSpinner = document.getElementById("login-spinner");
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -64,28 +111,17 @@ const appLogic = () => {
         const password = passwordInput.value.trim();
 
         if (!email || !password) {
-            toast({
-                title: "Erro",
-                description: "Por favor, preencha todos os campos",
-                variant: "destructive",
-            });
-            return;
+            return toast({ title: "Erro", description: "Por favor, preencha todos os campos", variant: "destructive" });
         }
 
-        isLoading = true;
         loginButton.disabled = true;
         loginText.textContent = "Entrando...";
         loginSpinner.classList.remove("hidden");
-        loginButton.classList.add("opacity-50");
 
         try {
             const response = await fetch(`${BASE_API_URL}/login`, {
                 method: "POST",
-                headers: {
-                    email: email,
-                    password: password,
-                },
-                body: {},
+                headers: { email, password },
             });
 
             if (!response.ok) {
@@ -95,99 +131,25 @@ const appLogic = () => {
 
             const data = await response.json();
             window.localStorage.setItem("token", data.token);
-            toast({
-                title: "Login realizado!",
-                description: "Bem-vindo ao sistema",
-            });
-
+            toast({ title: "Login realizado!", description: "Bem-vindo ao sistema" });
             showApp();
         } catch (error) {
-            toast({
-                title: "Erro no login",
-                description: error.message || "Verifique suas credenciais",
-                variant: "destructive",
-            });
+            toast({ title: "Erro no login", description: error.message, variant: "destructive" });
         } finally {
-            isLoading = false;
             loginButton.disabled = false;
             loginText.textContent = "Entrar";
             loginSpinner.classList.add("hidden");
-            loginButton.classList.remove("opacity-50");
         }
     };
 
-    loginForm.addEventListener("submit", handleLogin);
-
-    // --- Lógica de Upload de Arquivo ---
-    const fileInput = document.getElementById("csv-upload");
-    const selectedFileContainer = document.getElementById(
-        "selected-file-container"
-    );
-    const fileNameDisplay = document.getElementById("file-name");
-    const fileSizeDisplay = document.getElementById("file-size");
-    const uploadButton = document.getElementById("upload-button");
-    const uploadText = document.getElementById("upload-text");
-    const loadingSpinner = document.getElementById("loading-spinner");
-    const successMessage = document.getElementById("success-message");
-    const logoutButton = document.getElementById("logout-button");
-    const chooseFileButton = document.getElementById("choose-file-button");
-
-    let selectedFile = null;
-    let isUploading = false;
-
-    const formatFileSize = (bytes) => {
-        if (bytes === 0) return "0 Bytes";
-        const k = 1024;
-        const sizes = ["Bytes", "KB", "MB", "GB"];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return (
-            parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
-        );
-    };
-
-    const handleFileSelect = (e) => {
-        const file = e.target.files[0];
-        successMessage.classList.add("hidden");
-
-        if (!file) {
-            selectedFileContainer.classList.add("hidden");
-            return;
-        }
-
-        if (!file.name.endsWith(".csv")) {
-            toast({
-                title: "Arquivo inválido",
-                description: "Por favor, selecione um arquivo CSV",
-                variant: "destructive",
-            });
-            fileInput.value = "";
-            return;
-        }
-
-        selectedFile = file;
-        fileNameDisplay.textContent = file.name;
-        fileSizeDisplay.textContent = formatFileSize(file.size);
-        selectedFileContainer.classList.remove("hidden");
-    };
-
-    const handleUpload = async () => {
-        if (!selectedFile || isUploading) return;
-
-        isUploading = true;
-        uploadButton.disabled = true;
-        uploadText.textContent = "Enviando...";
-        loadingSpinner.classList.remove("hidden");
-        uploadButton.classList.add("opacity-50");
-
+    const createUploadHandler = (endpoint) => async (file) => {
+        if (!file) return;
         const formData = new FormData();
-        formData.append("file", selectedFile);
+        formData.append("file", file);
 
         try {
-            const response = await fetch(BASE_API_URL + "/upload/taxas-frete", {
+            const response = await apiFetch(`${BASE_API_URL}${endpoint}`, {
                 method: "POST",
-                headers: {
-                    Authorization: "Bearer" + token,
-                },
                 body: formData,
             });
 
@@ -195,155 +157,75 @@ const appLogic = () => {
                 const errorData = await response.json();
                 throw new Error(errorData.message || "Erro no envio do arquivo");
             }
-
-            toast({
-                title: "Upload realizado!",
-                description:
-                    "Arquivo " + selectedFile.name + " enviado com sucesso",
-            });
-
-            selectedFile = null;
-            fileInput.value = "";
-            selectedFileContainer.classList.add("hidden");
-            successMessage.classList.remove("hidden");
+            const result = await response.json();
+            toast({ title: "Upload realizado!", description: result.message || `Arquivo ${file.name} enviado com sucesso` });
+            return true;
         } catch (error) {
-            toast({
-                title: "Erro no upload",
-                description: error.message,
-                variant: "destructive",
-            });
-        } finally {
-            isUploading = false;
-            uploadButton.disabled = false;
-            uploadText.textContent = "Enviar";
-            loadingSpinner.classList.add("hidden");
-            uploadButton.classList.remove("opacity-50");
+            if (error.message !== "Sessão expirada") {
+               toast({ title: "Erro no upload", description: error.message, variant: "destructive" });
+            }
+            return false;
         }
     };
 
-    fileInput.addEventListener("change", handleFileSelect);
-    uploadButton.addEventListener("click", handleUpload);
+    const handleTaxasUpload = createUploadHandler("/upload/taxas-frete");
+    const handlePrecosUpload = createUploadHandler("/upload/parse-precos");
 
-    // Corrige o problema do clique, ativando o input de arquivo quando o botão é clicado.
-    chooseFileButton.addEventListener("click", () => fileInput.click());
+    const setupUploadComponent = (config) => {
+        let currentFile = null;
 
+        config.fileInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            config.successMessage.classList.add("hidden");
+            if (file && file.name.endsWith(".csv")) {
+                currentFile = file;
+                config.fileNameDisplay.textContent = file.name;
+                config.fileSizeDisplay.textContent = (file.size / 1024).toFixed(2) + " KB";
+                config.selectedFileContainer.classList.remove("hidden");
+            } else {
+                currentFile = null;
+                config.selectedFileContainer.classList.add("hidden");
+                if (file) toast({ title: "Arquivo inválido", description: "Selecione um arquivo CSV.", variant: "destructive" });
+            }
+        });
 
-    // --- Lógica do Segundo Upload de Arquivo (Preços por Kg) ---
-    const fileInputPrice = document.getElementById("csv-upload-price");
-    const selectedFilePriceContainer = document.getElementById(
-        "selected-file-price-container"
-    );
+        config.chooseFileButton.addEventListener("click", () => config.fileInput.click());
 
-    const fileNamePriceDisplay = document.getElementById("file-price-name");
-    const fileSizePriceDisplay = document.getElementById("file-price-size");
-    const uploadPriceButton = document.getElementById("upload-price-button");
-    const uploadPriceText = document.getElementById("upload-price-text");
-    const loadingPriceSpinner = document.getElementById("loading-price-spinner");
-    const successPriceMessage = document.getElementById("success-price-message");
-    const choosePriceFileButton = document.getElementById("choose-file-price-button");
+        config.uploadButton.addEventListener("click", async () => {
+            if (!currentFile) return;
 
-    let selectedPriceFile = null;
-    let isUploadingPrice = false;
+            config.uploadButton.disabled = true;
+            config.uploadText.textContent = "Enviando...";
+            config.loadingSpinner.classList.remove("hidden");
 
-
-    const handlePriceFileSelect = (e) => {
-        const file = e.target.files[0];
-        successPriceMessage.classList.add("hidden");
-
-        if (!file) {
-            selectedFilePriceContainer.classList.add("hidden");
-            return;
-        }
-
-        if (!file.name.endsWith(".csv")) {
-            toast({
-                title: "Arquivo inválido",
-                description: "Por favor, selecione um arquivo CSV",
-                variant: "destructive",
-            });
-            fileInputPrice.value = "";
-            return;
-        }
-
-        selectedPriceFile = file;
-        fileNamePriceDisplay.textContent = file.name;
-        fileSizePriceDisplay.textContent = formatFileSize(file.size);
-        selectedFilePriceContainer.classList.remove("hidden");
-    };
-
-    const handlePriceUpload = async () => {
-        if (!selectedPriceFile || isUploadingPrice) return;
-
-        isUploading = true;
-        uploadPriceButton.disabled = true;
-        uploadPriceText.textContent = "Enviando...";
-        loadingPriceSpinner.classList.remove("hidden");
-        uploadPriceButton.classList.add("opacity-50");
-
-        const formData = new FormData();
-        formData.append("file", selectedPriceFile);
-
-        try {
-            const response = await fetch(BASE_API_URL + "/upload/parse-precos", {
-                method: "POST",
-                headers: {
-                    Authorization: "Bearer" + token,
-                },
-                body: formData,
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || "Erro no envio do arquivo");
+            const success = await config.uploadHandler(currentFile);
+            if (success) {
+                currentFile = null;
+                config.fileInput.value = "";
+                config.selectedFileContainer.classList.add("hidden");
+                config.successMessage.classList.remove("hidden");
             }
 
-            toast({
-                title: "Upload realizado!",
-                description:
-                    "Arquivo " + selectedFile.name + " enviado com sucesso",
-            });
-
-            selectedPriceFile = null;
-            fileInputPrice.value = "";
-            selectedFilePriceContainer.classList.add("hidden");
-            successPriceMessage.classList.remove("hidden");
-        } catch (error) {
-            toast({
-                title: "Erro no upload",
-                description: error.message,
-                variant: "destructive",
-            });
-        } finally {
-            isUploading = false;
-            uploadPriceButton.disabled = false;
-            uploadPriceText.textContent = "Enviar";
-            loadingPriceSpinner.classList.add("hidden");
-            uploadPriceButton.classList.remove("opacity-50");
-        }
-    };
-
-    fileInputPrice.addEventListener("change", handlePriceFileSelect);
-    uploadPriceButton.addEventListener("click", handlePriceUpload);
-
-    // Corrige o problema do clique, ativando o input de arquivo quando o botão é clicado.
-    choosePriceFileButton.addEventListener("click", () => fileInputPrice.click());
-
-    // --- Lógica de Logout ---
-    const handleLogout = () => {
-        token = null;
-        emailInput.value = "";
-        passwordInput.value = "";
-        showLogin();
-        toast({
-            title: "Sessão encerrada",
-            description: "Você saiu do sistema.",
+            config.uploadButton.disabled = false;
+            config.uploadText.textContent = "Enviar";
+            config.loadingSpinner.classList.add("hidden");
         });
     };
 
-    logoutButton.addEventListener("click", handleLogout);
+    setupUploadComponent({
+        fileInput, chooseFileButton, selectedFileContainer, fileNameDisplay, fileSizeDisplay, uploadButton, uploadText, loadingSpinner, successMessage,
+        uploadHandler: handleTaxasUpload
+    });
 
-    // --- Estado Inicial ---
-    showLogin();
+    setupUploadComponent({
+        fileInput: fileInputPrice, chooseFileButton: choosePriceFileButton, selectedFileContainer: selectedFilePriceContainer, fileNameDisplay: fileNamePriceDisplay, fileSizeDisplay: fileSizePriceDisplay, uploadButton: uploadPriceButton, uploadText: uploadPriceText, loadingSpinner: loadingPriceSpinner, successMessage: successPriceMessage,
+        uploadHandler: handlePrecosUpload
+    });
+
+    loginForm.addEventListener("submit", handleLogin);
+    logoutButton.addEventListener("click", () => handleLogout(false));
+
+    window.localStorage.getItem("token") ? showApp() : showLogin();
     lucide.createIcons();
 };
 
