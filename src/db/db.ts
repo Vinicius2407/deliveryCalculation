@@ -2,6 +2,10 @@ import { Low } from 'lowdb'
 import { JSONFile } from 'lowdb/node'
 import { randomUUID } from 'crypto';
 
+export enum Classificacao {
+  CAPITAL = 'Capital',
+}
+
 export type TaxaFrete = {
     id: string;
     uf: string;
