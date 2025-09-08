@@ -1,16 +1,13 @@
 // @ts-ignore
 /// <reference path="../../fastify.d.ts" />
 
-import { FastifyInstance } from 'fastify';
 import { randomUUID } from 'crypto';
 import * as csv from 'fast-csv';
-import { getDb, TaxaFrete } from '../db/db';
+import { FastifyInstance } from 'fastify';
+
+import { Classificacao, getDb, TaxaFrete } from '../db/db';
 import { parseCsvStream } from '../functions/csvHelpers';
 
-/**
- * Fastify routes for the application.
- * @param fastify The Fastify instance.
- */
 export async function routes(fastify: FastifyInstance) {
     fastify.post('/login', async (request, reply) => {
         const { email, password } = request.headers as { email: string, password: string };
@@ -40,12 +37,12 @@ export async function routes(fastify: FastifyInstance) {
         const stream = data.file.pipe(csv.parse({ headers: true, delimiter: ';' }));
 
         for await (const chunk of stream) {
-            const classificacao = 
+            const classificacao = Classificacao[chunk['Classificacao'] as keyof typeof Classificacao] ?? Classificacao.CAPITAL;
             taxas.push({
                 id: randomUUID(),
                 uf: chunk['UF'],
                 municipios: chunk['Municipios'],
-                classificacao: chunk['Classificacao'],
+                classificacao: classificacao,
             });
         }
 
@@ -55,22 +52,30 @@ export async function routes(fastify: FastifyInstance) {
         reply.send({ message: `${taxas.length} registros adicionados` });
     });
 
-    fastify.get('/api/parse-precos', async (request, reply) => {
+    fastify.post('/upload/parse-precos', async (request, reply) => {
         try {
             const data = await request.file();
             if (!data) {
                 return reply.status(400).send({ error: 'Nenhum arquivo foi enviado.' });
             }
-            console.log(`Recebendo arquivo: ${data.filename}`);
+
+            console.log(`Recebendo arquivo para parsing de preços: ${data.filename}`);
             const dadosPrecos = await parseCsvStream(data.file);
+
+            const db = getDb();
+            db.data.fretePrecos = [];
+            db.data.fretePrecos.push(...dadosPrecos);
+            await db.write();
+
             return reply.send({
-                message: 'Arquivo processado com sucesso!',
+                message: `${dadosPrecos.length} registros de preços salvos com sucesso!`,
                 filename: data.filename,
-                data: dadosPrecos,
             });
-        } catch (error) {
+        } catch (error: any & { message: string }) { // @ts-ignore
+            console.error('Erro no upload de preços:', error.message);
             return reply.status(500).send({
                 error: 'Ocorreu um erro ao processar o arquivo.',
+                details: error.message,
             });
         }
     });

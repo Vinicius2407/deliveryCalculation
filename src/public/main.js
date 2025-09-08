@@ -3,7 +3,7 @@ const appLogic = () => {
     const BASE_API_URL = "http://localhost:3000";
 
     // --- Estado e alternância de UI ---
-    let user = window.localStorage.getItem("token");
+    let token = window.localStorage.getItem("token");
     let isLoading = false;
 
     const loginFormContainer = document.getElementById(
@@ -19,19 +19,9 @@ const appLogic = () => {
     const showApp = () => {
         loginFormContainer.classList.add("hidden");
         mainAppContainer.classList.remove("hidden");
-        updateAppUI();
     };
 
-    const updateAppUI = () => {
-        if (user) {
-            document.getElementById("user-email").textContent = user.email;
-            document.getElementById("user-email-info").textContent = user.email;
-            document.getElementById("user-token").textContent =
-                user.token.substring(0, 20) + "...";
-        }
-    };
-
-    user ? showApp() : showLogin();
+    token ? showApp() : showLogin();
 
     // --- Sistema de Notificação Toast ---
     const toast = ({ title, description, variant }) => {
@@ -44,15 +34,15 @@ const appLogic = () => {
             borderColor = "border-red-400";
         }
 
-        toastEl.className = `p-4 rounded-md shadow-lg text-white \${bgColor} border \${borderColor} transition-all transform ease-out duration-300`;
+        toastEl.className = `p-4 rounded-md shadow-lg text-white ${bgColor} border ${borderColor} transition-all transform ease-out duration-300`;
         toastEl.innerHTML = `
                     <div class="flex items-center justify-between">
-                        <h4 class="font-semibold">\${title}</h4>
+                        <h4 class="font-semibold">${title}</h4>
                         <button class="ml-4 text-white hover:text-gray-200" onclick="this.parentElement.parentElement.remove()">
                             &times;
                         </button>
                     </div>
-                    <p class="text-sm opacity-90 mt-1">\${description}</p>
+                    <p class="text-sm opacity-90 mt-1">${description}</p>
                 `;
         container.prepend(toastEl);
         setTimeout(() => {
@@ -196,7 +186,7 @@ const appLogic = () => {
             const response = await fetch(BASE_API_URL + "/upload/taxas-frete", {
                 method: "POST",
                 headers: {
-                    Authorization: "Bearer" + user.token,
+                    Authorization: "Bearer" + token,
                 },
                 body: formData,
             });
@@ -237,9 +227,110 @@ const appLogic = () => {
     // Corrige o problema do clique, ativando o input de arquivo quando o botão é clicado.
     chooseFileButton.addEventListener("click", () => fileInput.click());
 
+
+    // --- Lógica do Segundo Upload de Arquivo (Preços por Kg) ---
+    const fileInputPrice = document.getElementById("csv-upload-price");
+    const selectedFilePriceContainer = document.getElementById(
+        "selected-file-price-container"
+    );
+
+    const fileNamePriceDisplay = document.getElementById("file-price-name");
+    const fileSizePriceDisplay = document.getElementById("file-price-size");
+    const uploadPriceButton = document.getElementById("upload-price-button");
+    const uploadPriceText = document.getElementById("upload-price-text");
+    const loadingPriceSpinner = document.getElementById("loading-price-spinner");
+    const successPriceMessage = document.getElementById("success-price-message");
+    const choosePriceFileButton = document.getElementById("choose-file-price-button");
+
+    let selectedPriceFile = null;
+    let isUploadingPrice = false;
+
+
+    const handlePriceFileSelect = (e) => {
+        const file = e.target.files[0];
+        successPriceMessage.classList.add("hidden");
+
+        if (!file) {
+            selectedFilePriceContainer.classList.add("hidden");
+            return;
+        }
+
+        if (!file.name.endsWith(".csv")) {
+            toast({
+                title: "Arquivo inválido",
+                description: "Por favor, selecione um arquivo CSV",
+                variant: "destructive",
+            });
+            fileInputPrice.value = "";
+            return;
+        }
+
+        selectedPriceFile = file;
+        fileNamePriceDisplay.textContent = file.name;
+        fileSizePriceDisplay.textContent = formatFileSize(file.size);
+        selectedFilePriceContainer.classList.remove("hidden");
+    };
+
+    const handlePriceUpload = async () => {
+        if (!selectedPriceFile || isUploadingPrice) return;
+
+        isUploading = true;
+        uploadPriceButton.disabled = true;
+        uploadPriceText.textContent = "Enviando...";
+        loadingPriceSpinner.classList.remove("hidden");
+        uploadPriceButton.classList.add("opacity-50");
+
+        const formData = new FormData();
+        formData.append("file", selectedPriceFile);
+
+        try {
+            const response = await fetch(BASE_API_URL + "/upload/parse-precos", {
+                method: "POST",
+                headers: {
+                    Authorization: "Bearer" + token,
+                },
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || "Erro no envio do arquivo");
+            }
+
+            toast({
+                title: "Upload realizado!",
+                description:
+                    "Arquivo " + selectedFile.name + " enviado com sucesso",
+            });
+
+            selectedPriceFile = null;
+            fileInputPrice.value = "";
+            selectedFilePriceContainer.classList.add("hidden");
+            successPriceMessage.classList.remove("hidden");
+        } catch (error) {
+            toast({
+                title: "Erro no upload",
+                description: error.message,
+                variant: "destructive",
+            });
+        } finally {
+            isUploading = false;
+            uploadPriceButton.disabled = false;
+            uploadPriceText.textContent = "Enviar";
+            loadingPriceSpinner.classList.add("hidden");
+            uploadPriceButton.classList.remove("opacity-50");
+        }
+    };
+
+    fileInputPrice.addEventListener("change", handlePriceFileSelect);
+    uploadPriceButton.addEventListener("click", handlePriceUpload);
+
+    // Corrige o problema do clique, ativando o input de arquivo quando o botão é clicado.
+    choosePriceFileButton.addEventListener("click", () => fileInputPrice.click());
+
     // --- Lógica de Logout ---
     const handleLogout = () => {
-        user = null;
+        token = null;
         emailInput.value = "";
         passwordInput.value = "";
         showLogin();
