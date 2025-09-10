@@ -76,4 +76,34 @@ export async function routes(fastify: FastifyInstance) {
             });
         }
     });
+
+    // fastify.post('calculo-frete', async (request, reply) => {
+    //     const { } = request.body as { uf: string, peso_kg: number, classificacao: string };
+    //     const db = getDb();
+    //     const taxa = db.data.taxasFrete.find(t => t.uf === uf && t.classificacao === classificacao);
+
+    //     if (!taxa) {
+    //         return reply.status(404).send({ message: 'Taxa de frete não encontrada para os parâmetros fornecidos.' });
+    //     }
+
+    //     const precoEntry = db.data.fretePrecos.find(p => p.UF === uf && p.classificacao === classificacao);
+    //     if (!precoEntry) {
+    //         return reply.status(404).send({ message: 'Preço de frete não encontrado para os parâmetros fornecidos.' });
+    //     }
+
+    //     const precoPorKg = precoEntry.precos_por_kg[peso_kg.toString()];
+    //     if (precoPorKg === undefined) {
+    //         return reply.status(400).send({ message: 'Preço por kg não disponível para o peso fornecido.' });
+    //     }
+
+    //     const custoFrete = precoPorKg * peso_kg;
+
+    //     return reply.send({
+    //         uf,
+    //         peso_kg,
+    //         classificacao,
+    //         custo_frete: custoFrete,
+    //         taxa_id: taxa.id,
+    //     });
+    // });
 }
