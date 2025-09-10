@@ -11,7 +11,8 @@
   "author": "Vinícius Silva",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --ignore 'db.json' --exec tsx index.ts"
+    "dev": "nodemon --ignore 'db.json' --exec tsx index.ts",
+    "build": "tsc"
   },
   "devDependencies": {
     "@types/node": "^24.3.1",
