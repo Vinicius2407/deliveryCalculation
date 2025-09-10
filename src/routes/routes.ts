@@ -1,11 +1,13 @@
 // @ts-ignore
 /// <reference path="../../fastify.d.ts" />
 
-import { FastifyInstance } from 'fastify';
 import { randomUUID } from 'crypto';
 import * as csv from 'fast-csv';
+import { FastifyInstance } from 'fastify';
 import { Classificacao, getDb, TaxaFrete } from '../db/db';
 import { parseCsvStream } from '../functions/csvHelpers';
+import { getAddressByZipcode } from '../integrations/viaCepIntegration';
+import { Quote, RequestIntegration, ResponseIntegration } from '../types/integrations/yampiTypes';
 
 export async function routes(fastify: FastifyInstance) {
     fastify.post('/login', async (request, reply) => {
@@ -77,33 +79,56 @@ export async function routes(fastify: FastifyInstance) {
         }
     });
 
-    // fastify.post('calculo-frete', async (request, reply) => {
-    //     const { } = request.body as { uf: string, peso_kg: number, classificacao: string };
-    //     const db = getDb();
-    //     const taxa = db.data.taxasFrete.find(t => t.uf === uf && t.classificacao === classificacao);
+    fastify.post('calculo-frete', async (request, reply) => {
+        const requestBodyIntegration = request.body as RequestIntegration;
+        const db = getDb();
 
-    //     if (!taxa) {
-    //         return reply.status(404).send({ message: 'Taxa de frete não encontrada para os parâmetros fornecidos.' });
-    //     }
+        const cityViaCep = await getAddressByZipcode(requestBodyIntegration.zipcode);
 
-    //     const precoEntry = db.data.fretePrecos.find(p => p.UF === uf && p.classificacao === classificacao);
-    //     if (!precoEntry) {
-    //         return reply.status(404).send({ message: 'Preço de frete não encontrado para os parâmetros fornecidos.' });
-    //     }
+        if (!cityViaCep || !cityViaCep.uf || !cityViaCep.localidade) {
+            return reply.status(400).send({ message: 'CEP inválido ou não encontrado.' });
+        }
 
-    //     const precoPorKg = precoEntry.precos_por_kg[peso_kg.toString()];
-    //     if (precoPorKg === undefined) {
-    //         return reply.status(400).send({ message: 'Preço por kg não disponível para o peso fornecido.' });
-    //     }
+        const classificacaoMunicipios = db.data.taxasFrete.find(t => t.uf.toLowerCase() === cityViaCep.uf.toLowerCase() && t.municipios.toLowerCase() === cityViaCep.localidade.toLowerCase());
 
-    //     const custoFrete = precoPorKg * peso_kg;
+        const pricesPerKg = db.data.fretePrecos.filter(p => p.UF == classificacaoMunicipios?.uf && p.classificacao.toLowerCase() === (classificacaoMunicipios?.classificacao.toLowerCase() ?? Classificacao.CAPITAL.toLowerCase()));
 
-    //     return reply.send({
-    //         uf,
-    //         peso_kg,
-    //         classificacao,
-    //         custo_frete: custoFrete,
-    //         taxa_id: taxa.id,
-    //     });
-    // });
+        if (pricesPerKg.length === 0) {
+            return reply.status(400).send({ message: 'Nenhuma tabela de frete encontrada para a localidade.' });
+        }
+
+        if (pricesPerKg.length === 0 || !pricesPerKg[0]!.precos_por_kg) {
+            return reply.status(400).send({ message: 'Nenhuma tabela de frete encontrada para a localidade.' });
+        }
+
+        const totalWeight = requestBodyIntegration.skus.reduce((acc, sku) => acc + sku.weight * sku.quantity, 0);
+
+        const precosObj = pricesPerKg[0]!.precos_por_kg;
+        const pesosDasFaixas = Object.keys(precosObj);
+        const faixasOrdenadas = pesosDasFaixas.map(p => parseFloat(p)).sort((a, b) => a - b);
+        const faixaEncontrada = faixasOrdenadas.find(pesoDaFaixa => totalWeight <= pesoDaFaixa);
+
+        let valorDoFrete = null;
+
+        if (faixaEncontrada !== undefined) {
+            valorDoFrete = precosObj[faixaEncontrada];
+        }
+
+        if (valorDoFrete === null) {
+            return reply.status(400).send({ message: `O peso total de ${totalWeight}kg excede o limite de frete para esta região.` });
+        }
+
+        const retornoPrecos: ResponseIntegration = new ResponseIntegration();
+        const quote: Quote = new Quote();
+        quote.name = "Tabela Fedex";
+        quote.service = "FEDEX";
+        quote.price = valorDoFrete!;
+        quote.days = 13; // Prazo fixo de entrega
+        quote.quote_id = randomUUID();
+        quote.free_shipment = requestBodyIntegration.amount >= 150; // Frete grátis para compras acima de 150
+
+        retornoPrecos.quotes.push(quote);
+
+        return reply.send(retornoPrecos);
+    });
 }
