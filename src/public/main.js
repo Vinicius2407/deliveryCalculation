@@ -49,7 +49,7 @@ const appLogic = () => {
             </div>
             <p class="text-sm opacity-90 mt-1">${description}</p>
         `;
-        toastContainer.prepend(toastEl);
+        toastContainer?.prepend(toastEl);
         setTimeout(() => toastEl.remove(), 5000);
     };
 
