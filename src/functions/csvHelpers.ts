@@ -37,7 +37,7 @@ export function parseCsvStream(stream: Readable): Promise<DadosPreco[]> {
     let lastUF = '';
 
     const csvStream: CsvParserStream<CsvRow, CsvRow> = parse({ headers: false, skipRows: 2 })
-      .on('error', (error) => reject(error))
+      .on('error', (error: any) => reject(error))
       .on('data', (row: CsvRow) => {
         if (row.length < 3 || row.every(field => field.trim() === '')) {
             return;
