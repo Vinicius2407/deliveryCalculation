@@ -1,7 +1,7 @@
 import { Low } from 'lowdb'
 import { JSONFile } from 'lowdb/node'
 import { randomUUID } from 'crypto';
-import { DadosPreco } from '../functions/csvHelpers';
+import { DadosPreco } from '../functions/csvHelpers.js';
 
 export enum Classificacao {
   CAPITAL = 'Capital',

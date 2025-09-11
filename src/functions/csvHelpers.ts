@@ -1,6 +1,6 @@
 import { parse, CsvParserStream } from 'fast-csv';
 import { Readable } from 'stream';
-import { Classificacao } from '../db/db';
+import { Classificacao } from '../db/db.js';
 
 export interface DadosPreco {
   UF: string;

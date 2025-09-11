@@ -4,16 +4,16 @@
 import { randomUUID } from 'crypto';
 import * as csv from 'fast-csv';
 import { FastifyInstance } from 'fastify';
-import { Classificacao, getDb, TaxaFrete } from '../db/db';
-import { parseCsvStream } from '../functions/csvHelpers';
-import { getAddressByZipcode } from '../integrations/viaCepIntegration';
-import { Quote, RequestIntegration, ResponseIntegration } from '../types/integrations/yampiTypes';
+import { Classificacao, getDb, TaxaFrete } from '../db/db.js';
+import { parseCsvStream } from '../functions/csvHelpers.js';
+import { getAddressByZipcode } from '../integrations/viaCepIntegration.js';
+import { Quote, RequestIntegration, ResponseIntegration } from '../types/integrations/yampiTypes.js';
 
 export async function routes(fastify: FastifyInstance) {
     fastify.post('/login', async (request, reply) => {
         const { email, password } = request.headers as { email: string, password: string };
         const db = getDb();
-        const user = db.data.users.find(user => user.email === email && user.password === password);
+        const user = db.data.users.find((user: { id: string; email: string; password: string }) => user.email === email && user.password === password);
 
         if (user) {
             const token = fastify.jwt.sign({ email: user.email }, { expiresIn: '8h' });
@@ -89,9 +89,9 @@ export async function routes(fastify: FastifyInstance) {
             return reply.status(400).send({ message: 'CEP inválido ou não encontrado.' });
         }
 
-        const classificacaoMunicipios = db.data.taxasFrete.find(t => t.uf.toLowerCase() === cityViaCep.uf.toLowerCase() && t.municipios.toLowerCase() === cityViaCep.localidade.toLowerCase());
+        const classificacaoMunicipios = db.data.taxasFrete.find((t: TaxaFrete) => t.uf.toLowerCase() === cityViaCep.uf.toLowerCase() && t.municipios.toLowerCase() === cityViaCep.localidade.toLowerCase());
 
-        const pricesPerKg = db.data.fretePrecos.filter(p => p.UF == classificacaoMunicipios?.uf && p.classificacao.toLowerCase() === (classificacaoMunicipios?.classificacao.toLowerCase() ?? Classificacao.CAPITAL.toLowerCase()));
+        const pricesPerKg = db.data.fretePrecos.filter((p: any) => p.UF == classificacaoMunicipios?.uf && p.classificacao.toLowerCase() === (classificacaoMunicipios?.classificacao.toLowerCase() ?? Classificacao.CAPITAL.toLowerCase()));
 
         if (pricesPerKg.length === 0) {
             return reply.status(400).send({ message: 'Nenhuma tabela de frete encontrada para a localidade.' });
@@ -101,7 +101,7 @@ export async function routes(fastify: FastifyInstance) {
             return reply.status(400).send({ message: 'Nenhuma tabela de frete encontrada para a localidade.' });
         }
 
-        const totalWeight = requestBodyIntegration.skus.reduce((acc, sku) => acc + sku.weight * sku.quantity, 0);
+        const totalWeight = requestBodyIntegration.skus.reduce((acc: number, sku: any) => acc + sku.weight * sku.quantity, 0);
 
         const precosObj = pricesPerKg[0]!.precos_por_kg;
         const pesosDasFaixas = Object.keys(precosObj);

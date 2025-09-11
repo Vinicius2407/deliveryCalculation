@@ -2,7 +2,7 @@ import fastifyMultipart from '@fastify/multipart';
 import staticPlugin from '@fastify/static';
 import fastify, { FastifyReply, FastifyRequest } from 'fastify';
 import path from 'path';
-import { routes } from './routes';
+import { routes } from './routes.js';
 
 export class FastifyServer {
     private app = fastify({ logger: true });

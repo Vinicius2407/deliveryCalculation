@@ -9,9 +9,10 @@
   },
   "license": "MIT",
   "author": "Vinícius Silva",
-  "main": "index.js",
+  "main": "index.ts",
+  "type": "module",
   "scripts": {
-    "dev": "nodemon --ignore 'db.json' --exec tsx index.ts",
+    "dev": "nodemon --ignore 'db.json' --exec tsx src/index.ts",
     "build": "tsc"
   },
   "devDependencies": {
