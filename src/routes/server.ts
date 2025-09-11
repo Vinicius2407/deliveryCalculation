@@ -1,8 +1,14 @@
+import fastifyJwt from '@fastify/jwt';
 import fastifyMultipart from '@fastify/multipart';
 import staticPlugin from '@fastify/static';
 import fastify, { FastifyReply, FastifyRequest } from 'fastify';
-import path from 'path';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { routes } from './routes.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export class FastifyServer {
     private app = fastify({ logger: true });
@@ -14,7 +20,7 @@ export class FastifyServer {
             throw new Error('JWT_SECRET não foi definido no arquivo .env');
         }
 
-        this.app.register(require('@fastify/jwt'), { secret: process.env.JWT_SECRET });
+        this.app.register(fastifyJwt, { secret: process.env.JWT_SECRET });
 
         this.app.decorate("authenticate",
             async function (request: FastifyRequest, reply: FastifyReply) {
