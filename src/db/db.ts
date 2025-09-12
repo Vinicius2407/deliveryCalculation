@@ -25,10 +25,20 @@ export type TaxaFrete = {
 
 export type FretePrecos = DadosPreco
 
+export type User = {
+  id: string;
+  email: string;
+  password: string;
+  isAdmin: boolean;
+}
+
 type Data = {
-  users: { id: string; email: string; password: string }[]
+  users: User[]
   taxasFrete: TaxaFrete[]
   fretePrecos: FretePrecos[]
+  settings: {
+    isBlocked: boolean;
+  }
 }
 
 let db: Low<Data>
@@ -39,7 +49,12 @@ export async function createConnection() {
   const file = path.join(__dirname, '..', '..', 'data', 'db.json');
   
   const adapter = new JSONFile<Data>(file)
-  const defaultData: Data = { users: [], taxasFrete: [], fretePrecos: [] }
+  const defaultData: Data = {
+    users: [],
+    taxasFrete: [],
+    fretePrecos: [],
+    settings: { isBlocked: false }
+  }
   db = new Low<Data>(adapter, defaultData)
 
   await db.read()
@@ -48,12 +63,18 @@ export async function createConnection() {
     db.data.users.push({
       id: randomUUID(),
       email: 'andre_admin@ninhonatural.com.br',
-      password: 'Nncb899800?'
+      password: 'Nncb899800?',
+      isAdmin: false
     }, {
       id: randomUUID(),
       email: "vinicius.dev@byvsp.net",
-      password: "vinicius30102023"
+      password: "vinicius30102023",
+      isAdmin: true
     })
+  }
+
+  if (!db.data.settings) {
+    db.data.settings = { isBlocked: false };
   }
 
   await db.write()

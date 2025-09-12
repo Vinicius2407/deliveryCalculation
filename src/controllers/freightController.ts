@@ -2,6 +2,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { FreightService } from '../services/freightService.js';
 import { RequestIntegration } from '../types/integrations/yampiTypes.js';
+import crypto from 'node:crypto';
 
 /**
  * @class FreightController
@@ -58,11 +59,37 @@ export class FreightController {
 
     /**
      * @method calculoFrete
-     * @description Calculates the freight cost.
+     * @description Calculates the freight cost after validating the HMAC signature.
      * @param {FastifyRequest} request - The request object.
      * @param {FastifyReply} reply - The reply object.
      */
     async calculoFrete(request: FastifyRequest, reply: FastifyReply) {
+        const secret = process.env.YAMPI_SECRET_KEY;
+        if (!secret) {
+            request.log.error('YAMPI_SECRET_KEY não foi definido no .env');
+            return reply.status(500).send({ message: 'Erro de configuração interna do servidor.' });
+        }
+
+        const yampiSignature = request.headers['x-yampi-hmac-sha256'];
+        if (!yampiSignature) {
+            return reply.status(400).send({ message: 'Cabeçalho X-Yampi-Hmac-SHA256 ausente.' });
+        }
+
+        const rawBody = (request as any).rawBody;
+        if (typeof rawBody !== 'string') {
+            return reply.status(500).send({ message: 'Não foi possível ler o corpo da requisição.' });
+        }
+
+        const calculatedSignature = crypto
+            .createHmac('sha256', secret)
+            .update(rawBody)
+            .digest('base64');
+
+        if (calculatedSignature !== yampiSignature) {
+            return reply.status(403).send({ message: 'Assinatura inválida.' });
+        }
+
+        // Se a assinatura for válida, continue com a lógica original
         const requestBodyIntegration = request.body as RequestIntegration;
 
         try {

@@ -5,6 +5,7 @@ declare module 'fastify' {
     export interface FastifyInstance {
         authenticate: any;
         jwt: JWT;
+        authenticateAdmin: any;
     }
     export interface FastifyRequest {
         jwtVerify: any;

@@ -18,6 +18,10 @@ export async function routes(fastify: FastifyInstance) {
 
     fastify.post('/login', authController.login.bind(authController));
 
+    fastify.post('/admin/toggle-lock', {
+        preHandler: [fastify.authenticateAdmin]
+    }, authController.toggleSystemLock.bind(authController));
+
     fastify.post('/upload/taxas-frete', {
         preHandler: [fastify.authenticate]
     }, freightController.uploadTaxasFrete.bind(freightController));
