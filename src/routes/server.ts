@@ -1,7 +1,7 @@
 import fastifyJwt from '@fastify/jwt';
 import fastifyMultipart from '@fastify/multipart';
 import staticPlugin from '@fastify/static';
-import fastify, { FastifyReply, FastifyRequest } from 'fastify';
+import Fastify, { FastifyReply, FastifyRequest } from 'fastify';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export class FastifyServer {
-    private app = fastify({ logger: true });
+    private app = Fastify({ logger: true });
 
     private async setup() {
         this.app.register(fastifyMultipart);
