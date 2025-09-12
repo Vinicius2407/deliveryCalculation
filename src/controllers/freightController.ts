@@ -66,17 +66,21 @@ export class FreightController {
     async calculoFrete(request: FastifyRequest, reply: FastifyReply) {
         const secret = process.env.YAMPI_SECRET_KEY;
         if (!secret) {
+            console.error("Chave nao definida");
             request.log.error('YAMPI_SECRET_KEY não foi definido no .env');
             return reply.status(500).send({ message: 'Erro de configuração interna do servidor.' });
         }
 
         const yampiSignature = request.headers['x-yampi-hmac-sha256'];
         if (!yampiSignature) {
+            console.error("Assinatura nao definida");
             return reply.status(400).send({ message: 'Cabeçalho X-Yampi-Hmac-SHA256 ausente.' });
         }
 
         const rawBody = (request as any).rawBody;
+        console.log("Raw body:", rawBody);
         if (typeof rawBody !== 'string') {
+            console.error("Corpo nao definido");
             return reply.status(500).send({ message: 'Não foi possível ler o corpo da requisição.' });
         }
 
@@ -86,16 +90,18 @@ export class FreightController {
             .digest('base64');
 
         if (calculatedSignature !== yampiSignature) {
+            console.error("Assinatura invalida");
             return reply.status(403).send({ message: 'Assinatura inválida.' });
         }
 
         // Se a assinatura for válida, continue com a lógica original
         const requestBodyIntegration = request.body as RequestIntegration;
-
+        console.log("Request body:", requestBodyIntegration);
         try {
             const result = await this.freightService.calculoFrete(requestBodyIntegration);
             return reply.send(result);
         } catch (error: any) {
+            console.error("Erro no calculoFrete:", error);
             return reply.status(400).send({ message: error.message });
         }
     }
