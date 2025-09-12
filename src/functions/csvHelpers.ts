@@ -36,45 +36,54 @@ export function parseCsvStream(stream: Readable): Promise<DadosPreco[]> {
     const results: DadosPreco[] = [];
     let lastUF = '';
 
-    const csvStream: CsvParserStream<CsvRow, CsvRow> = parse({ headers: false, skipRows: 2 })
-      .on('error', (error: any) => reject(error))
-      .on('data', (row: CsvRow) => {
-        if (row.length < 3 || row.every(field => field.trim() === '')) {
-            return;
-        }
+    const chunks: Buffer[] = [];
+    stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+    stream.on('end', () => {
+      const fileBuffer = Buffer.concat(chunks);
+      const fileContent = fileBuffer.toString('latin1');
+      const readableStream = Readable.from(fileContent);
 
-        const currentUF = row[0] && row[0].trim() !== '' ? row[0].trim() : lastUF;
-        const localidade = row[1] ? row[1].trim() : '';
-        
-        if (currentUF && localidade) {
-          lastUF = currentUF;
-          const classificacao = getClassificationFromString(localidade);
-          const precos_por_kg: { [key: string]: number } = {};
+      const csvStream: CsvParserStream<CsvRow, CsvRow> = parse({ headers: false, skipRows: 2 })
+        .on('error', (error: any) => reject(error))
+        .on('data', (row: CsvRow) => {
+          if (row.length < 3 || row.every(field => field.trim() === '')) {
+              return;
+          }
+
+          const currentUF = row[0] && row[0].trim() !== '' ? row[0].trim() : lastUF;
+          const localidade = row[1] ? row[1].trim() : '';
           
-          for (let i = 2; i < row.length - 1; i++) {
-            const key = (i - 1).toString();
-            const value = row[i];
+          if (currentUF && localidade) {
+            lastUF = currentUF;
+            const classificacao = getClassificationFromString(localidade);
+            const precos_por_kg: { [key: string]: number } = {};
+            
+            for (let i = 2; i < row.length - 1; i++) {
+              const key = (i - 1).toString();
+              const value = row[i];
 
-            if (value && value.trim() !== '') {
-                const cleanedValue = value.replace(/"/g, '');
-                precos_por_kg[key] = parseFloat(cleanedValue.replace(',', '.'));
+              if (value && value.trim() !== '') {
+                  const cleanedValue = value.replace(/"/g, '');
+                  precos_por_kg[key] = parseFloat(cleanedValue.replace(',', '.'));
+              }
+            }
+
+            if (Object.keys(precos_por_kg).length > 0) {
+              results.push({
+                UF: currentUF,
+                classificacao,
+                precos_por_kg,
+              });
             }
           }
+        })
+        .on('end', (rowCount: number) => {
+          console.log(`Parsed ${rowCount} data rows from CSV.`);
+          resolve(results);
+        });
 
-          if (Object.keys(precos_por_kg).length > 0) {
-            results.push({
-              UF: currentUF,
-              classificacao,
-              precos_por_kg,
-            });
-          }
-        }
-      })
-      .on('end', (rowCount: number) => {
-        console.log(`Parsed ${rowCount} data rows from CSV.`);
-        resolve(results);
-      });
-
-    stream.pipe(csvStream);
+      readableStream.pipe(csvStream);
+    });
+    stream.on('error', (error) => reject(error));
   });
 }

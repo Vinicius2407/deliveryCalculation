@@ -1,11 +1,12 @@
-import fastifyJwt, { JWT } from '@fastify/jwt';
+import fastifyJwt from '@fastify/jwt';
 import fastifyMultipart from '@fastify/multipart';
 import staticPlugin from '@fastify/static';
 import Fastify, { FastifyReply, FastifyRequest } from 'fastify';
 import path from 'node:path';
+import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
-import { getDb } from '../db/db.js';
 
+import { getDb } from '../db/db.js';
 import { routes } from './routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -18,19 +19,26 @@ export class FastifyServer {
         this.app.addHook('preParsing', (request, reply, payload, done) => {
             const contentType = request.headers['content-type'];
 
-            // Do not consume the stream for multipart requests
+            // Ignora multipart para uploads de arquivo
             if (contentType && contentType.startsWith('multipart/form-data')) {
-                done(null, payload);
-                return;
+                return done(null, payload);
             }
 
             let data = '';
             payload.on('data', (chunk) => {
                 data += chunk;
             });
+
             payload.on('end', () => {
                 (request as any).rawBody = data;
-                done(null, payload);
+                const newStream = Readable.from(data);
+                done(null, newStream);
+            });
+
+            payload.on('error', (err) => {
+                console.error("Erro ao ler o corpo da requisicao:", err);
+                // Em caso de erro, passe o erro para o Fastify
+                done(err, undefined);
             });
         });
 

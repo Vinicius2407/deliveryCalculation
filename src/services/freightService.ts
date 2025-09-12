@@ -1,4 +1,4 @@
-
+import { Readable } from 'stream';
 import * as csv from 'fast-csv';
 import { randomUUID } from 'crypto';
 import { Classificacao, TaxaFrete } from '../db/db.js';
@@ -24,22 +24,41 @@ export class FreightService {
      * @param {any} data - The file data.
      * @returns {Promise<{message: string}>}
      */
-    async uploadTaxasFrete(data: any) {
+    async uploadTaxasFrete(data: any): Promise<{ message: string }> {
         const taxas: TaxaFrete[] = [];
-        const stream = data.file.pipe(csv.parse({ headers: true, delimiter: ';' }));
+        const fileStream = data.file;
 
-        for await (const chunk of stream) {
-            const classificacao = Classificacao[chunk['Classificacao'] as keyof typeof Classificacao] ?? Classificacao.CAPITAL;
-            taxas.push({
-                id: randomUUID(),
-                uf: chunk['UF'],
-                municipios: chunk['Municipios'],
-                classificacao: classificacao,
+        const chunks: Buffer[] = [];
+        fileStream.on('data', (chunk: any) => chunks.push(Buffer.from(chunk)));
+
+        return new Promise<{ message: string }>((resolve, reject) => {
+            fileStream.on('end', async () => {
+                try {
+                    const fileBuffer = Buffer.concat(chunks);
+                    const fileContent = fileBuffer.toString('latin1');
+                    const readableStream = Readable.from(fileContent);
+    
+                    const csvStream = readableStream.pipe(csv.parse({ headers: true, delimiter: ';' }));
+    
+                    for await (const chunk of csvStream) {
+                        const classificacao = Classificacao[chunk['Classificacao'] as keyof typeof Classificacao] ?? Classificacao.CAPITAL;
+                        taxas.push({
+                            id: randomUUID(),
+                            uf: chunk['UF'],
+                            municipios: chunk['Municipios'],
+                            classificacao: classificacao,
+                        });
+                    }
+    
+                    await this.freightRepository.saveTaxasFrete(taxas);
+                    resolve({ message: `${taxas.length} registros adicionados` });
+                } catch (error) {
+                    reject(error);
+                }
             });
-        }
 
-        await this.freightRepository.saveTaxasFrete(taxas);
-        return { message: `${taxas.length} registros adicionados` };
+            fileStream.on('error', (error: any) => reject(error));
+        });
     }
 
     /**
@@ -68,7 +87,7 @@ export class FreightService {
      * @throws {Error} If no freight table is found for the location.
      * @throws {Error} If the total weight exceeds the freight limit.
      */
-    async calculoFrete(requestBodyIntegration: RequestIntegration) {
+    async calculoFrete(requestBodyIntegration: RequestIntegration): Promise<ResponseIntegration> {
         const cityViaCep = await getAddressByZipcode(requestBodyIntegration.zipcode);
 
         if (!cityViaCep || !cityViaCep.uf || !cityViaCep.localidade) {
@@ -76,12 +95,8 @@ export class FreightService {
         }
 
         const classificacaoMunicipios = await this.freightRepository.findTaxaFrete(cityViaCep.uf, cityViaCep.localidade);
-
+        console.log("Classificacao encontrada:", classificacaoMunicipios);
         const pricesPerKg = await this.freightRepository.findPrecosPorKg(classificacaoMunicipios?.uf, classificacaoMunicipios?.classificacao);
-
-        if (pricesPerKg.length === 0) {
-            throw new Error('Nenhuma tabela de frete encontrada para a localidade.');
-        }
 
         if (pricesPerKg.length === 0 || !pricesPerKg[0]!.precos_por_kg) {
             throw new Error('Nenhuma tabela de frete encontrada para a localidade.');
@@ -106,7 +121,7 @@ export class FreightService {
 
         const retornoPrecos: ResponseIntegration = new ResponseIntegration();
         const quote: Quote = new Quote();
-        quote.name = "Tabela Fedex";
+        quote.name = "Fedex API";
         quote.service = "FEDEX";
         quote.price = valorDoFrete!;
         quote.days = 13; // Prazo fixo de entrega

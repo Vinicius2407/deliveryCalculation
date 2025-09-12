@@ -6,5 +6,6 @@ export async function getAddressByZipcode(zipcode: string): Promise<ResponseViaC
         throw new Error('Erro ao buscar o CEP');
     }
     const data: ResponseViaCep = await response.json();
+    console.log(`Dados recebidos do ViaCep para o CEP ${zipcode}:`, data);
     return data;
 } 
