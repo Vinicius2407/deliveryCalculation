@@ -2,6 +2,8 @@ import { Low } from 'lowdb'
 import { JSONFile } from 'lowdb/node'
 import { randomUUID } from 'crypto';
 import { DadosPreco } from '../functions/csvHelpers.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 export enum Classificacao {
   CAPITAL = 'Capital',
@@ -32,7 +34,10 @@ type Data = {
 let db: Low<Data>
 
 export async function createConnection() {
-  const file = './src/db/db.json'
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const file = path.join(__dirname, '..', '..', 'data', 'db.json');
+  
   const adapter = new JSONFile<Data>(file)
   const defaultData: Data = { users: [], taxasFrete: [], fretePrecos: [] }
   db = new Low<Data>(adapter, defaultData)

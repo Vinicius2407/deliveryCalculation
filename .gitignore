@@ -1,7 +1,13 @@
 
 # Arquivos de ambiente
 .env
+
+# Dependencias
 node_modules
-*.csv
-*.json
+
+# Arquivos de build
 dist
+
+# Arquivos de dados e uploads
+*.csv
+/data/db.json
