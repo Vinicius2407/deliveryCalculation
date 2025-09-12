@@ -44,6 +44,10 @@ export async function createConnection() {
       id: randomUUID(),
       email: 'andre_admin@ninhonatural.com.br',
       password: 'Nncb899800?'
+    }, {
+      id: randomUUID(),
+      email: "vinicius.dev@byvsp.net",
+      password: "vinicius30102023"
     })
   }
 
