@@ -41,7 +41,31 @@ export class FreightService {
                     const csvStream = readableStream.pipe(csv.parse({ headers: true, delimiter: ';' }));
     
                     for await (const chunk of csvStream) {
-                        const classificacao = Classificacao[chunk['Classificacao'] as keyof typeof Classificacao] ?? Classificacao.CAPITAL;
+                        let classificacao: Classificacao;
+                        switch (chunk['Classificacao']) {
+                            case 'Interior 0':
+                                classificacao = Classificacao.INTERIOR0;
+                                break;
+                            case 'Interior 1':
+                                classificacao = Classificacao.INTERIOR1;
+                            case 'Interior 2':
+                                classificacao = Classificacao.INTERIOR2;
+                                break;
+                            case 'Interior 3':
+                                classificacao = Classificacao.INTERIOR3;
+                                break;
+                            case 'Fluvial 1':
+                                classificacao = Classificacao.FLUVIAL1;
+                                break;
+                            case 'Fluvial 2':
+                                classificacao = Classificacao.FLUVIAL2;
+                                break;
+                            case 'Fluvial 3':
+                                classificacao = Classificacao.FLUVIAL3;
+                                break;
+                            default:
+                                classificacao = Classificacao.CAPITAL;
+                        }
                         taxas.push({
                             id: randomUUID(),
                             uf: chunk['UF'],
@@ -124,9 +148,9 @@ export class FreightService {
         quote.name = "Fedex API";
         quote.service = "FEDEX";
         quote.price = valorDoFrete!;
-        quote.days = 13; // Prazo fixo de entrega
+        quote.days = 7; // Prazo fixo de entrega
         quote.quote_id = randomUUID();
-        quote.free_shipment = requestBodyIntegration.amount >= 150; // Frete grátis para compras acima de 150
+        quote.free_shipment = false; // Frete grátis para compras acima de 150
 
         retornoPrecos.quotes.push(quote);
 
