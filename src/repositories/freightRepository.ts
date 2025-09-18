@@ -1,5 +1,6 @@
 
 import { getDb, TaxaFrete } from '../db/db.js';
+import { DadosPreco } from '../functions/csvHelpers.js';
 
 /**
  * @class FreightRepository
@@ -21,9 +22,9 @@ export class FreightRepository {
     /**
      * @method saveFretePrecos
      * @description Saves freight prices to the database.
-     * @param {any[]} precos - The freight prices to save.
+     * @param {DadosPreco[]} precos - The freight prices to save.
      */
-    async saveFretePrecos(precos: any[]) {
+    async saveFretePrecos(precos: DadosPreco[]) {
         const db = getDb();
         db.data.fretePrecos = [];
         db.data.fretePrecos.push(...precos);
@@ -47,10 +48,10 @@ export class FreightRepository {
      * @description Finds freight prices per kg by UF and classification.
      * @param {string | undefined} uf - The state (UF).
      * @param {string | undefined} classificacao - The classification.
-     * @returns {Promise<any[]>} The freight prices.
+     * @returns {Promise<DadosPreco[]>} The freight prices.
      */
-    async findPrecosPorKg(uf: string | undefined, classificacao: string | undefined): Promise<any[]> {
+    async findPrecosPorKg(uf: string | undefined, classificacao: string | undefined): Promise<DadosPreco[]> {
         const db = getDb();
-        return db.data.fretePrecos.filter((p: any) => p.UF == uf && p.classificacao.toLowerCase() === (classificacao?.toLowerCase() ?? 'capital'));
+        return db.data.fretePrecos.filter((p: DadosPreco) => p.UF == uf && p.classificacao.toLowerCase() === (classificacao?.toLowerCase() ?? 'capital'));
     }
 }
