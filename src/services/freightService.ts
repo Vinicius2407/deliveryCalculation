@@ -145,7 +145,7 @@ export class FreightService {
 
         const retornoPrecos: ResponseIntegration = new ResponseIntegration();
         const quote: Quote = new Quote();
-        // quote.name = "Fedex Express";
+        quote.name = "Fedex Express";
         quote.service = "FEDEX";
         quote.price = valorDoFrete!;
         quote.days = 7; // Prazo fixo de entrega
